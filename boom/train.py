@@ -1,10 +1,10 @@
 import os
 import sys
 
-if sys.platform != "darwin":
-    os.environ["MUJOCO_GL"] = "osmesa"
-    os.environ["PYOPENGL_PLATFORM"] = "osmesa"
-    os.environ["HYDRA_FULL_ERROR"]="1"
+# if sys.platform != "darwin":
+#     os.environ["MUJOCO_GL"] = "osmesa"
+#     os.environ["PYOPENGL_PLATFORM"] = "osmesa"
+#     os.environ["HYDRA_FULL_ERROR"]="1"
 os.environ["LAZY_LEGACY_OP"] = "0"
 import warnings
 
@@ -42,7 +42,8 @@ def train(cfg: dict):
     cfg = parse_cfg(cfg)
     set_seed(cfg.seed)
     print(colored("Work dir:", "yellow", attrs=["bold"]), cfg.work_dir)
-
+    if cfg.task in ['Ant-v4', 'Humanoid-v4', 'Hopper-v4', 'Walker2d-v4']:
+        cfg.episodic=True
     trainer_cls = OnlineTrainer
     trainer = trainer_cls(
         cfg=cfg,

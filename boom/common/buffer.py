@@ -89,7 +89,12 @@ class Buffer:
         std = td["std"][1:]
         reward = td["reward"][1:].unsqueeze(-1)
         task = td["task"][0] if "task" in td.keys() else None
-        return self._to_device(obs, action, mu, std, reward, task)
+        terminated = td.get('terminated', None)
+        if terminated is not None:
+            terminated = td.get('terminated')[1:].unsqueeze(-1)
+        else:
+            terminated = torch.zeros_like(reward)
+        return self._to_device(obs, action, mu, std, reward, terminated, task)
 
     def add(self, td):
         """Add an episode to the buffer."""

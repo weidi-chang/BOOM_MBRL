@@ -1,7 +1,7 @@
 from copy import deepcopy
 import warnings
 
-import gymnasium as gym
+# import gymnasium as gym
 
 from boom.envs.wrappers.multitask import MultitaskWrapper
 from boom.envs.wrappers.pixels import PixelWrapper
@@ -17,7 +17,8 @@ def missing_dependencies(task):
 
 from boom.envs.dmcontrol import make_env as make_dm_control_env
 from boom.envs.humanoid import make_env as make_humanoid_env
-from boom.envs.gymenv import make_env as make_gym_env
+from boom.envs.mujoco_env import make_env as make_mujoco
+# from boom.envs.gymenv import make_env as make_gym_env
 try:
     from boom.envs.maniskill import make_env as make_maniskill_env
 except:
@@ -63,7 +64,10 @@ def make_env(cfg):
     gymflag = False
     if cfg.multitask:
         env = make_multitask_env(cfg)
-
+    elif cfg.task in ['HalfCheetah-v4', 'Ant-v4', 'Humanoid-v4', 'Hopper-v4', 'Walker2d-v4']:
+        env = make_mujoco(cfg)
+        env = TensorWrapper(env)
+        gymflag = True
     else:
         env = None
         env = make_dm_control_env(cfg)
