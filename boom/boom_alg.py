@@ -31,6 +31,7 @@ class BOOM:
 				},
 				{"params": self.model._dynamics.parameters()},
 				{"params": self.model._reward.parameters()},
+				{'params': self.model._termination.parameters() if self.cfg.episodic else []},
 				{"params": self.model._Qs.parameters()},
 				{
 					"params": self.model._task_emb.parameters()
@@ -127,6 +128,7 @@ class BOOM:
 	def _estimate_value(self, z, actions, task, horizon, eval_mode=False):
 		"""Estimate value of a trajectory starting at latent state z and executing given actions."""
 		G, discount = 0, 1
+		termination = torch.zeros(self.cfg.num_samples, 1, dtype=torch.float32, device=z.device)
 		for t in range(horizon):
 			reward = math.two_hot_inv(self.model.reward(z, actions[t], task), self.cfg)
 			z = self.model.next(z, actions[t], task)
@@ -136,6 +138,8 @@ class BOOM:
 				if self.cfg.multitask
 				else self.discount
 			)
+			if self.cfg.episodic:
+				termination = torch.clip(termination + (self.model.termination(z, task) > 0.5).float(), max=1.)
 		return G + discount * self.model.Q(
 			z, self.model.pi(z, task)[1], task, return_type="avg"
 		)
@@ -308,7 +312,7 @@ class BOOM:
 		Returns:
 				dict: Dictionary of training statistics.
 		"""
-		obs, action, mu, std, reward, task = replay_sample # mu and std are from Gaussian policy used for data collection	
+		obs, action, mu, std, reward, terminated, task = replay_sample # mu and std are from Gaussian policy used for data collection	
 		
 		# Compute targets
 		with torch.no_grad():
@@ -338,6 +342,9 @@ class BOOM:
 		_zs = zs[:-1]
 		qs = self.model.Q(_zs, action, task, return_type="all")
 		reward_preds = self.model.reward(_zs, action, task)
+		
+		if self.cfg.episodic:
+			termination_pred = self.model.termination(zs[1:], task, unnormalized=True)
 
 		# Compute losses
 		reward_loss, value_loss = 0, 0
@@ -353,11 +360,16 @@ class BOOM:
 				)
 		consistency_loss *= 1 / self.cfg.horizon
 		reward_loss *= 1 / self.cfg.horizon
+		if self.cfg.episodic:
+			termination_loss = F.binary_cross_entropy_with_logits(termination_pred, terminated)
+		else:
+			termination_loss = 0.
 		value_loss *= 1 / (self.cfg.horizon * self.cfg.num_q)
 
 		total_loss = (
 			self.cfg.consistency_coef * consistency_loss
 			+ self.cfg.reward_coef * reward_loss
+			+ self.cfg.termination_coef * termination_loss
 			+ self.cfg.value_coef * value_loss
 		)
 			

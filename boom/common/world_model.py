@@ -31,6 +31,7 @@ class WorldModel(nn.Module):
             2 * [cfg.mlp_dim],
             max(cfg.num_bins, 1),
         )
+        self._termination = layers.mlp(cfg.latent_dim + cfg.task_dim, 2*[cfg.mlp_dim], 1) if cfg.episodic else None
         self._pi = layers.mlp(
             cfg.latent_dim + cfg.task_dim, 2 * [cfg.mlp_dim], 2 * cfg.action_dim
         )
@@ -160,6 +161,17 @@ class WorldModel(nn.Module):
         z = torch.cat([z, a], dim=-1)
         return self._reward(z)
 
+    def termination(self, z, task, unnormalized=False):
+        """
+        Predicts termination signal.
+        """
+        assert task is None
+        if self.cfg.multitask:
+            z = self.task_emb(z, task)
+        if unnormalized:
+            return self._termination(z)
+        return torch.sigmoid(self._termination(z))
+        
     def pi(self, z, task):
         """
         Samples an action from the policy.

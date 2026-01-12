@@ -95,7 +95,7 @@ class OnlineTrainer(Trainer):
             q_value=np.nanmean(q_values),
         )
 
-    def to_td(self, obs, action=None, mu=None, std=None, reward=None):
+    def to_td(self, obs, action=None, mu=None, std=None, reward=None, terminated=None):
         """Creates a TensorDict for a new episode."""
         obs = TensorDict(obs, batch_size=(), device="cpu") if isinstance(obs, dict) else obs.unsqueeze(0).cpu()
 
@@ -107,6 +107,8 @@ class OnlineTrainer(Trainer):
             std = torch.full_like(action, math.exp(self.cfg.log_std_max))
         if reward is None:
             reward = torch.tensor(float("nan"))
+        if terminated is None:
+            terminated = torch.tensor(float('nan'))
 
         return TensorDict({
             "obs": obs,
@@ -114,6 +116,7 @@ class OnlineTrainer(Trainer):
             "mu": mu.unsqueeze(0),
             "std": std.unsqueeze(0),
             "reward": reward.unsqueeze(0),
+            "terminated": terminated.unsqueeze(0),
         }, batch_size=(1,))
 
     def train(self):
@@ -160,7 +163,7 @@ class OnlineTrainer(Trainer):
 
             obs, reward, done, truncated, info = self.env.step(action)
             done = done or truncated
-            self._tds.append(self.to_td(obs, action, mu, std, reward))
+            self._tds.append(self.to_td(obs, action, mu, std, reward, info['terminated']))
             
             if self._step >= self.cfg.seed_steps:
                 if self._step % 100 == 0 \
@@ -169,9 +172,9 @@ class OnlineTrainer(Trainer):
                     self.replay_sample_list = []
                     # print("Replaying new data from buffer...")
                     for _ in range(100):
-                        replay_obs, replay_action, replay_mu, replay_std, replay_reward, replay_task = self.buffer.sample()
+                        replay_obs, replay_action, replay_mu, replay_std, replay_reward, replay_terminated, replay_task = self.buffer.sample()
                         self.replay_sample_list.append(
-                            (replay_obs, replay_action, replay_mu, replay_std, replay_reward, replay_task)
+                            (replay_obs, replay_action, replay_mu, replay_std, replay_reward, replay_terminated, replay_task)
                         )
                     self.count = 0
 

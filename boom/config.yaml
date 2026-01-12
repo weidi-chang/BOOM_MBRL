@@ -5,6 +5,7 @@ defaults:
 task: dog-run
 obs: state
 boom: v1
+episodic: false
 
 # evaluation
 checkpoint: ???
@@ -20,6 +21,7 @@ batch_size: 256
 reward_coef: 0.1
 value_coef: 0.1
 consistency_coef: 20
+termination_coef: 1
 rho: 0.5
 lr: 3e-4
 enc_lr_scale: 0.3
@@ -72,7 +74,7 @@ wandb_project: tdmpc
 wandb_entity: zgj21-tsinghua-university
 
 wandb_silent: false
-disable_wandb: false
+disable_wandb: true
 save_csv: true
 
 # misc
