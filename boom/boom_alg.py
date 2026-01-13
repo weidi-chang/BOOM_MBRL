@@ -132,7 +132,7 @@ class BOOM:
 		for t in range(horizon):
 			reward = math.two_hot_inv(self.model.reward(z, actions[t], task), self.cfg)
 			z = self.model.next(z, actions[t], task)
-			G += discount * reward
+			G += discount * (1-termination) * reward
 			discount *= (
 				self.discount[torch.tensor(task)]
 				if self.cfg.multitask
@@ -140,7 +140,7 @@ class BOOM:
 			)
 			if self.cfg.episodic:
 				termination = torch.clip(termination + (self.model.termination(z, task) > 0.5).float(), max=1.)
-		return G + discount * self.model.Q(
+		return G + discount * (1-termination) * self.model.Q(
 			z, self.model.pi(z, task)[1], task, return_type="avg"
 		)
 
