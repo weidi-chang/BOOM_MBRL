@@ -282,7 +282,7 @@ class BOOM:
 		return pi_loss.item(), q_loss.item(), fkl_loss.item()
 
 	@torch.no_grad()
-	def _td_target(self, next_z, reward, task):
+	def _td_target(self, next_z, reward, terminated, task):
 		"""
 		Compute the TD-target from a reward and the observation at the following time step.
 
@@ -298,7 +298,7 @@ class BOOM:
 		discount = (
 			self.discount[task].unsqueeze(-1) if self.cfg.multitask else self.discount
 		)
-		return reward + discount * self.model.Q(
+		return reward + discount * (1-terminated) * self.model.Q(
 			next_z, pi, task, return_type="min", target=True
 		)
 
@@ -317,7 +317,7 @@ class BOOM:
 		# Compute targets
 		with torch.no_grad():
 			next_z = self.model.encode(obs[1:], task)
-			td_targets = self._td_target(next_z, reward, task)
+			td_targets = self._td_target(next_z, reward, terminated, task)
 			
 		# Prepare for update
 		self.optim.zero_grad(set_to_none=True)
